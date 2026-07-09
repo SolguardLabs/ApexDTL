@@ -1,0 +1,87 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CI completo",
+            "type": "shell",
+            "command": "bun run ci",
+            "group": "build",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "CI shell",
+            "type": "shell",
+            "command": "bash scripts/ci.sh",
+            "group": "build",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "Tests completos",
+            "type": "shell",
+            "command": "bun run test:all",
+            "group": "test",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "Tests shell",
+            "type": "shell",
+            "command": "bash scripts/tests.sh",
+            "group": "test",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "Tests Rust",
+            "type": "shell",
+            "command": "cargo test --locked",
+            "group": "test",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "Tests Node",
+            "type": "shell",
+            "command": "bun test --timeout 30000 ./tests/node",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Formato Rust",
+            "type": "shell",
+            "command": "cargo fmt --all",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Formato JavaScript",
+            "type": "shell",
+            "command": "bun run fmt",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Clippy",
+            "type": "shell",
+            "command": "cargo clippy --all-targets --all-features --locked -- -D warnings",
+            "group": "build",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "Check JavaScript",
+            "type": "shell",
+            "command": "bun run build",
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}

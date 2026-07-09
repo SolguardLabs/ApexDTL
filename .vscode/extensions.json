@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb",
+        "oven.bun-vscode",
+        "esbenp.prettier-vscode",
+        "github.vscode-github-actions"
+    ]
+}

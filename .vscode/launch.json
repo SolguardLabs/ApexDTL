@@ -1,0 +1,85 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Apex DTL: direct",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "apex_dtl"
+                ],
+                "filter": {
+                    "name": "apex_dtl",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "direct"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Apex DTL: routed",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "apex_dtl"
+                ],
+                "filter": {
+                    "name": "apex_dtl",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "routed"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Apex DTL: batch",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "apex_dtl"
+                ],
+                "filter": {
+                    "name": "apex_dtl",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "batch"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Apex DTL: snapshot",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "apex_dtl"
+                ],
+                "filter": {
+                    "name": "apex_dtl",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "snapshot"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
