@@ -1,5 +1,7 @@
 # Apex DTL
 
+![banner](./assets/banner.png)
+
 Apex DTL es un protocolo seguro de liquidacion determinista escrito en Rust. Su
 objetivo es modelar flujos de pago diferido entre pagadores, beneficiarios,
 solvers e integradores mediante intents firmados, rutas de ejecucion y
