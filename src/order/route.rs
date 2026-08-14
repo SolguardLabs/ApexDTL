@@ -11,6 +11,7 @@ pub struct LiquidityCredit {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct RoutePlan {
+    pub venue: Digest,
     pub solver: AccountId,
     pub fee_recipient: AccountId,
     pub operator_fee: Amount,
@@ -32,8 +33,9 @@ impl LiquidityCredit {
 }
 
 impl RoutePlan {
-    pub fn direct(solver: AccountId, lane: u16, nonce: u64) -> Self {
+    pub fn direct(solver: AccountId, venue: Digest, lane: u16, nonce: u64) -> Self {
         Self {
+            venue,
             solver,
             fee_recipient: solver,
             operator_fee: Amount::zero(),
@@ -58,6 +60,10 @@ impl RoutePlan {
     }
 
     pub fn validate(self, policy: IntentPolicy, amount: Amount) -> ApexResult<()> {
+        if self.venue != policy.venue {
+            return Err(ApexError::Policy("execution venue mismatch".to_owned()));
+        }
+
         if self.execution_lane != policy.execution_lane {
             return Err(ApexError::Policy("execution lane mismatch".to_owned()));
         }

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { assertCommon, scenario } from "../helpers/scenario_helpers.js";
 
-test("direct conserva suministro y liquida saldo directo", () => {
+test("direct preserves supply and settles direct balances", () => {
     const payload = scenario("direct");
     assertCommon(payload, "direct");
     assert.deepEqual(payload.balances, {
@@ -16,7 +16,7 @@ test("direct conserva suministro y liquida saldo directo", () => {
     });
 });
 
-test("routed conserva suministro y distribuye cargos declarados", () => {
+test("routed preserves supply and distributes declared charges", () => {
     const payload = scenario("routed");
     assertCommon(payload, "routed");
     assert.deepEqual(payload.balances, {
@@ -29,7 +29,7 @@ test("routed conserva suministro y distribuye cargos declarados", () => {
     });
 });
 
-test("batch acumula dos liquidaciones en el mismo ledger", () => {
+test("batch accumulates two settlements in one ledger", () => {
     const payload = scenario("batch");
     assertCommon(payload, "batch");
     assert.deepEqual(payload.balances, {
@@ -42,7 +42,7 @@ test("batch acumula dos liquidaciones en el mismo ledger", () => {
     });
 });
 
-test("snapshot conserva el estado inicial financiado", () => {
+test("snapshot preserves the funded initial state", () => {
     const payload = scenario("snapshot");
     assertCommon(payload, "snapshot");
     assert.deepEqual(payload.balances, {

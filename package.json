@@ -1,9 +1,9 @@
 {
     "name": "apex-dtl",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "private": true,
     "type": "module",
-    "description": "Tests de integracion en Node para el ejecutable Apex DTL.",
+    "description": "Integration contracts for the ApexDTL settlement engine.",
     "scripts": {
         "test": "bun test --timeout 30000 ./tests/node",
         "test:rust": "cargo test --locked",

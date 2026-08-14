@@ -54,6 +54,28 @@ impl Amount {
             .map(Self)
             .ok_or(ApexError::AmountOverflow)
     }
+
+    pub fn checked_mul_ratio(self, numerator: u128, denominator: u128) -> ApexResult<Self> {
+        if denominator == 0 {
+            return Err(ApexError::InvalidConfiguration(
+                "ratio denominator must be positive".to_owned(),
+            ));
+        }
+        self.0
+            .checked_mul(numerator)
+            .and_then(|value| value.checked_div(denominator))
+            .map(Self)
+            .ok_or(ApexError::AmountOverflow)
+    }
+
+    pub fn checked_mul_ppm(self, ppm: u32) -> ApexResult<Self> {
+        if ppm > 1_000_000 {
+            return Err(ApexError::InvalidConfiguration(
+                "parts per million exceed scale".to_owned(),
+            ));
+        }
+        self.checked_mul_ratio(u128::from(ppm), 1_000_000)
+    }
 }
 
 impl Bps {

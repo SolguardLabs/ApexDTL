@@ -45,4 +45,4 @@ for (const file of files) {
     }
 }
 
-console.log(`Sintaxis JavaScript verificada en ${files.length} archivos.`);
+console.log(`JavaScript syntax verified in ${files.length} files.`);
