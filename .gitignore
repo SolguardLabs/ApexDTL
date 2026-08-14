@@ -1,5 +1,5 @@
 node_modules/
 target/
 dist/
-[v]ulnerability.md
-vulnerability.md
+coverage/
+*.profraw

@@ -1,8 +1,9 @@
 use serde::Serialize;
 
 use crate::{
-    AccountId, Amount, ApexLedger, ApexResult, AssetId, Bps, Digest, IntentPolicy, IntentTerms,
-    KeyPair, LiquidityCredit, RoutePlan, SettlementRequest, SignedIntent, SignedSettlement,
+    AccountId, Amount, ApexLedger, ApexResult, AssetId, Bps, Digest, EconomicInputs, FeeCurve,
+    IntentPolicy, IntentTerms, KeyPair, LiquidityCredit, PricingEngine, RoutePlan,
+    SettlementRequest, SignedIntent, SignedSettlement, StateCheckpoint, VERSION,
 };
 
 #[derive(Serialize)]
@@ -27,6 +28,22 @@ pub struct BalanceReport {
     pub integrator: Amount,
     pub reserve: Amount,
     pub sponsor: Amount,
+}
+
+#[derive(Serialize)]
+pub struct QuoteScenarioReport {
+    pub scenario: &'static str,
+    pub version: &'static str,
+    pub quote: crate::EconomicQuote,
+}
+
+#[derive(Serialize)]
+pub struct CheckpointScenarioReport {
+    pub scenario: &'static str,
+    pub version: &'static str,
+    pub checkpoint: StateCheckpoint,
+    pub account_count: usize,
+    pub intent_count: usize,
 }
 
 struct Fixture {
@@ -137,8 +154,13 @@ impl Fixture {
 pub fn direct() -> ApexResult<ScenarioReport> {
     let mut fixture = Fixture::new()?;
     let lane = 1;
-    let route = RoutePlan::direct(fixture.solver.public_identity().account, lane, 0);
     let policy = fixture.policy(25, lane)?;
+    let route = RoutePlan::direct(
+        fixture.solver.public_identity().account,
+        policy.venue,
+        lane,
+        0,
+    );
     open_and_settle(&mut fixture, "direct", Amount::new(900)?, policy, route)
 }
 
@@ -147,6 +169,7 @@ pub fn routed() -> ApexResult<ScenarioReport> {
     let lane = 2;
     let policy = fixture.policy(150, lane)?;
     let route = RoutePlan {
+        venue: policy.venue,
         solver: fixture.solver.public_identity().account,
         fee_recipient: fixture.solver.public_identity().account,
         operator_fee: Amount::new(12)?,
@@ -164,6 +187,7 @@ pub fn batch() -> ApexResult<ScenarioReport> {
     let lane = 3;
     let policy = fixture.policy(200, lane)?;
     let first_route = RoutePlan {
+        venue: policy.venue,
         solver: fixture.solver.public_identity().account,
         fee_recipient: fixture.solver.public_identity().account,
         operator_fee: Amount::new(8)?,
@@ -176,6 +200,7 @@ pub fn batch() -> ApexResult<ScenarioReport> {
     let first = open_and_settle_internal(&mut fixture, Amount::new(500)?, policy, first_route)?;
 
     let second_route = RoutePlan {
+        venue: policy.venue,
         solver: fixture.solver.public_identity().account,
         fee_recipient: fixture.reserve.public_identity().account,
         operator_fee: Amount::new(6)?,
@@ -197,6 +222,35 @@ pub fn batch() -> ApexResult<ScenarioReport> {
 pub fn snapshot() -> ApexResult<ScenarioReport> {
     let fixture = Fixture::new()?;
     fixture.report("snapshot", None, None, None)
+}
+
+pub fn quote() -> ApexResult<QuoteScenarioReport> {
+    let quote = PricingEngine::new(FeeCurve::default())?.quote(EconomicInputs {
+        principal: Amount::new(10_000_000)?,
+        utilization_bps: Bps::new(9_000)?,
+        finality_epochs: 6,
+        loss_probability_ppm: 2_000,
+        loss_severity_bps: Bps::new(4_000)?,
+        risk_score_bps: Bps::new(4_000)?,
+    })?;
+    Ok(QuoteScenarioReport {
+        scenario: "quote",
+        version: VERSION,
+        quote,
+    })
+}
+
+pub fn checkpoint() -> ApexResult<CheckpointScenarioReport> {
+    let mut fixture = Fixture::new()?;
+    fixture.ledger.set_epoch(12)?;
+    let checkpoint = StateCheckpoint::build(&fixture.ledger, 1, None)?;
+    Ok(CheckpointScenarioReport {
+        scenario: "checkpoint",
+        version: VERSION,
+        checkpoint,
+        account_count: fixture.ledger.account_count(),
+        intent_count: fixture.ledger.intent_count(),
+    })
 }
 
 fn open_and_settle(

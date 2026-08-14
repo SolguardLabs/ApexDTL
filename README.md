@@ -1,138 +1,192 @@
-# Apex DTL
+![ApexDTL](./assets/banner.png)
 
-![banner](./assets/banner.png)
+# ApexDTL
 
-Apex DTL es un protocolo seguro de liquidacion determinista escrito en Rust. Su
-objetivo es modelar flujos de pago diferido entre pagadores, beneficiarios,
-solvers e integradores mediante intents firmados, rutas de ejecucion y
-liquidaciones verificables.
+[![CI](https://github.com/SolguardLabs/ApexDTL/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SolguardLabs/ApexDTL/actions/workflows/ci.yml)
+[![Production](https://img.shields.io/badge/canal-production-E9DDC7)](https://github.com/SolguardLabs/ApexDTL/tree/production)
+[![Rust](https://img.shields.io/badge/Rust-1.96%2B-000000?logo=rust)](https://www.rust-lang.org/)
+[![Release](https://img.shields.io/github/v/release/SolguardLabs/ApexDTL?display_name=tag)](https://github.com/SolguardLabs/ApexDTL/releases)
+[![License](https://img.shields.io/badge/licencia-MIT-E9DDC7)](./LICENSE)
 
-El proyecto proporciona un nucleo compacto para simular y validar liquidaciones
-Web3 con salidas JSON reproducibles, digests de estado estables y controles de
-integridad contable en cada transicion relevante.
+ApexDTL es un motor determinista de intents para coordinar pagos entre redes,
+corredores de liquidez y operadores de ejecución. Su núcleo en Rust autentica
+las órdenes, inmoviliza el principal, valida la ruta observada y contabiliza la
+liquidación como una transición atómica y reproducible.
 
-## Caracteristicas principales
+El protocolo incorpora admisión por riesgo, precio ajustado por utilización,
+gobierno con quorum y timelock, límites móviles de flujo y checkpoints
+encadenados. La salida JSON del CLI permite integrar simuladores, observadores y
+procesos de conciliación sin depender de estado implícito.
 
-- Ledger determinista con digest de estado reproducible.
-- Identidades publicas derivadas de claves Ed25519.
-- Intents firmados por el pagador.
-- Rutas de ejecucion vinculadas criptograficamente al intent.
-- Solicitudes de liquidacion firmadas por el beneficiario.
-- Nonces independientes para apertura y liquidacion.
-- Deteccion de transacciones duplicadas.
-- Conservacion de suministro despues de cada mutacion critica.
-- Escenarios CLI para flujos directos, enrutados, batch y snapshot.
-- Tests de integracion en Rust y JavaScript/Bun.
+## Capacidades
+
+- Firmas Ed25519 separadas por dominio para apertura y liquidación.
+- Serialización canónica y digests BLAKE3 para órdenes, rutas y estado.
+- Nonces independientes, rechazo de replay e identificación determinista.
+- Ventanas temporales monotónicas y enlace estricto con el venue autorizado.
+- Contabilidad transaccional con verificación de conservación del suministro.
+- Scoring ponderado, concentración posterior y colateral por banda de riesgo.
+- Curva de comisión con kink, coste de liquidez y pérdida esperada.
+- Gobierno ponderado con quorum, timelock, guardian y executor separados.
+- Límites por operación y por ventana, con modos normal, restringido y detenido.
+- Checkpoints que comprometen estado, diario, época, versión y predecesor.
 
 ## Arquitectura
 
-El codigo esta separado por dominios:
+```mermaid
+flowchart LR
+    Client["Cliente de intents"] -->|"Intent firmado"| Auth["Autenticación y política"]
+    Risk["Motor de riesgo"] -->|"Admisión y colateral"| Auth
+    Auth -->|"Principal inmovilizado"| Ledger["Ledger determinista"]
+    Solver["Operador de ejecución"] --> Route["Plan de ruta"]
+    Route --> Auth
+    Beneficiary["Beneficiario"] -->|"Confirmación firmada"| Settlement["Motor de liquidación"]
+    Ledger --> Settlement
+    Settlement -->|"Transición atómica"| Journal["Diario canónico"]
+    Journal --> Checkpoint["Checkpoint encadenado"]
+    Governance["Gobierno y controles"] -.-> Risk
+    Governance -.-> Settlement
+```
 
-- `src/amount`: importes y calculos en basis points.
-- `src/codec`: serializacion canonica para firmas, digests e IDs.
-- `src/crypto`: identidades, firmas Ed25519 y verificacion.
-- `src/error`: errores del dominio Apex.
-- `src/ids`: identificadores de cuentas, activos, intents, transacciones y
-  digests.
-- `src/ledger`: cuentas, diario contable, intents bloqueados y transiciones de
-  estado.
-- `src/order`: politicas de intent, rutas de ejecucion y liquidaciones firmadas.
-- `src/runtime`: CLI y escenarios reproducibles.
+| Dominio | Responsabilidad | Módulo |
+| --- | --- | --- |
+| Identidad | Claves, cuentas, firmas y dominios | `src/crypto`, `src/codec` |
+| Orden | Política, términos, ruta y autorización | `src/order` |
+| Estado | Saldos, intents, diario e invariantes | `src/ledger` |
+| Riesgo | Scoring, concentración y colateral | `src/risk.rs` |
+| Economía | Precio, pérdida esperada y margen | `src/economics.rs` |
+| Gobierno | Quorum, timelock y separación de roles | `src/governance.rs` |
+| Operación | Límites móviles y modos de control | `src/controls.rs` |
+| Evidencia | Checkpoints y escenarios reproducibles | `src/checkpoint.rs`, `src/runtime` |
 
-## Flujo del protocolo
+## Ciclo de una orden
 
-1. El ledger se inicializa con un `network_id`, un activo nativo y cuentas
-   registradas.
-2. El pagador crea un intent con beneficiario, activo, importe, nonce y politica
-   de ejecucion.
-3. La ruta seleccionada se resume en un digest y queda incluida en la vista
-   firmada por el pagador.
-4. El ledger abre el intent, debita el importe al pagador y bloquea el valor.
-5. El beneficiario firma una solicitud de liquidacion con el digest de ruta
-   observado.
-6. El ledger verifica firmas, nonces, rutas, red, activo y estado del intent.
-7. La liquidacion acredita al beneficiario y a las partes de ruta segun el plan
-   registrado.
-8. El ledger confirma la transicion solo si se conserva el suministro total.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as Pagador
+    participant A as ApexDTL
+    participant S as Operador
+    participant B as Beneficiario
+    P->>A: Firma términos, política y ruta
+    A->>A: Verifica red, activo, época, nonce y firma
+    A->>A: Inmoviliza principal y registra apertura
+    S-->>B: Ejecuta la ruta acordada
+    B->>A: Firma confirmación y digest de ruta
+    A->>A: Verifica autorización y replay
+    A->>A: Aplica liquidación en estado candidato
+    A->>A: Comprueba conservación y confirma
+    A-->>P: Emite tx_id y nuevo state_digest
+```
 
-## Escenarios disponibles
+La mutación se calcula sobre una copia candidata. Si cualquier operación
+aritmética, firma, nonce, digest o invariante falla, el estado original permanece
+intacto.
 
-El binario acepta un argumento opcional. Si no se indica ninguno, ejecuta
-`routed`.
+## Modelo económico
+
+La admisión combina señales normalizadas en basis points:
+
+```text
+score = 0,25·finalidad + 0,20·liquidez + 0,35·contraparte + 0,20·operación
+concentración_post = (exposición_corredor + principal) / (cartera + principal)
+colateral_requerido = principal · max(mínimo_corredor, mínimo_banda)
+```
+
+El precio separa los componentes que deben observar Operaciones y Riesgos:
+
+```text
+fee_bps = min(fee_base + prima_utilización + prima_finalidad + prima_riesgo, fee_máxima)
+pérdida_esperada = principal · probabilidad_pérdida · severidad
+margen_contribución = comisión_protocolo - pérdida_esperada - coste_liquidez
+```
+
+La curva de utilización cambia de pendiente al alcanzar el kink configurado. El
+CLI `quote` expone el desglose y un digest de cotización reproducible. El modelo
+completo y un ejemplo numérico están en [docs/modelo-economico.md](./docs/modelo-economico.md).
+
+## Inicio rápido
+
+Requisitos:
+
+- Rust `1.96.0` o superior.
+- Bun `1.3.0` o superior.
+- Node.js `24` para validación de sintaxis y tooling.
+
+```bash
+git clone https://github.com/SolguardLabs/ApexDTL.git
+cd ApexDTL
+bun install --frozen-lockfile
+cargo build --all-targets --locked
+cargo run --locked -- routed
+```
+
+El comando devuelve JSON estable. Escenarios disponibles:
 
 ```bash
 cargo run --locked -- direct
 cargo run --locked -- routed
 cargo run --locked -- batch
 cargo run --locked -- snapshot
+cargo run --locked -- quote
+cargo run --locked -- checkpoint
+cargo run --locked -- version
 ```
 
-Cada escenario devuelve un JSON con:
+## Ejemplo de integración
 
-- `scenario`: nombre del escenario.
-- `network_id`: red simulada.
-- `asset`: activo liquidado.
-- `intent_id`: identificador del intent cuando aplica.
-- `open_tx`: transaccion de apertura cuando aplica.
-- `settlement_tx`: transaccion de liquidacion cuando aplica.
-- `balances`: saldos finales por rol.
-- `total_supply`: suministro total registrado.
-- `state_digest`: digest final del ledger.
-- `conservation_ok`: resultado de la comprobacion contable.
+```rust
+use apex_dtl::{
+    Amount, Bps, EconomicInputs, FeeCurve, PricingEngine,
+};
 
-## Requisitos
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let engine = PricingEngine::new(FeeCurve::default())?;
+    let quote = engine.quote(EconomicInputs {
+        principal: Amount::new(10_000_000)?,
+        utilization_bps: Bps::new(9_000)?,
+        finality_epochs: 6,
+        loss_probability_ppm: 2_000,
+        loss_severity_bps: Bps::new(4_000)?,
+        risk_score_bps: Bps::new(4_000)?,
+    })?;
 
-- Rust `1.96.0`.
-- Bun `1.3.0` o superior.
-- Node.js `24` recomendado para tooling auxiliar.
-
-## Instalacion
-
-```bash
-bun install --frozen-lockfile
-cargo build --all-targets --locked
+    println!("{}", serde_json::to_string_pretty(&quote)?);
+    Ok(())
+}
 ```
 
-## Comandos de desarrollo
+## Validación
 
 ```bash
-bun run test        # tests JavaScript/Bun
-bun run test:rust   # tests Rust
-bun run test:all    # tests Rust y JavaScript
-bun run fmt         # formato JavaScript
-bun run fmt:check   # verificacion de formato JavaScript
-bun run build       # verificacion de sintaxis JavaScript
-bun run ci          # pipeline local completo
-```
-
-Tambien se incluyen scripts POSIX:
-
-```bash
-bash scripts/tests.sh
+# Linux or macOS
 bash scripts/ci.sh
+
+# PowerShell
+./scripts/ci.ps1
 ```
 
-En Windows, se recomienda ejecutar los scripts con Git Bash. Desde PowerShell,
-la ruta mas directa es `bun run ci`.
+El pipeline valida formato, build, Clippy con warnings como errores, tests Rust,
+contratos CLI en Bun y alineación de versión en los tags. CI ejecuta Rust 1.96 y
+el canal estable para detectar incompatibilidades de MSRV y regresiones futuras.
 
-## Calidad
+## Documentación
 
-El pipeline comprueba:
+- [Arquitectura](./docs/arquitectura.md)
+- [Modelo económico](./docs/modelo-economico.md)
+- [API e integración](./docs/api.md)
+- [Gobierno y parámetros](./docs/gobierno.md)
+- [Operaciones y respuesta](./docs/operaciones.md)
+- [Política de seguridad](./SECURITY.md)
+- [Guía de contribución](./CONTRIBUTING.md)
 
-- Formato Rust.
-- Build Rust.
-- Tests Rust.
-- Clippy con warnings como errores.
-- Formato JavaScript.
-- Sintaxis JavaScript.
-- Tests JavaScript/Bun.
+## Canales de entrega
 
-Dependabot esta configurado para revisar dependencias de Cargo, Bun y GitHub
-Actions.
+`main` contiene la línea estable de desarrollo. `production` identifica el commit
+exactamente promovido y cada promoción se conserva como tag anotado `vX.Y.Z` y
+release de GitHub. Los tres punteros deben resolver al mismo commit para cerrar
+una entrega.
 
-## Estado
+## Licencia
 
-Apex DTL es una implementacion de referencia para entornos controlados,
-integraciones internas y validacion de flujos de liquidacion. Cualquier uso en
-produccion debe pasar por revision de arquitectura, hardening operativo y
-validacion independiente.
+Distribuido bajo licencia MIT. Consulta [LICENSE](./LICENSE).

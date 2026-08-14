@@ -65,6 +65,14 @@ pub enum ApexError {
     },
     #[error("nonce overflow")]
     NonceOverflow,
+    #[error("epoch overflow")]
+    EpochOverflow,
+    #[error("invalid configuration: {0}")]
+    InvalidConfiguration(String),
+    #[error("unauthorized operation: {0}")]
+    Unauthorized(String),
+    #[error("invalid state transition: {0}")]
+    State(String),
     #[error("policy violation: {0}")]
     Policy(String),
     #[error("conservation error for {asset}: expected {expected}, observed {observed}")]

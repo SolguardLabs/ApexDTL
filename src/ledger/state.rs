@@ -18,6 +18,7 @@ pub struct IntentState {
 pub struct ApexLedger {
     network_id: u32,
     asset: AssetId,
+    current_epoch: u64,
     accounts: BTreeMap<AccountId, AccountState>,
     intents: BTreeMap<IntentId, IntentState>,
     seen_transactions: BTreeSet<TxId>,
@@ -30,6 +31,7 @@ impl ApexLedger {
         Self {
             network_id,
             asset,
+            current_epoch: 0,
             accounts: BTreeMap::new(),
             intents: BTreeMap::new(),
             seen_transactions: BTreeSet::new(),
@@ -44,6 +46,40 @@ impl ApexLedger {
 
     pub fn asset(&self) -> AssetId {
         self.asset
+    }
+
+    pub fn current_epoch(&self) -> u64 {
+        self.current_epoch
+    }
+
+    pub fn set_epoch(&mut self, epoch: u64) -> ApexResult<()> {
+        if epoch < self.current_epoch {
+            return Err(ApexError::State(
+                "ledger epoch cannot move backwards".to_owned(),
+            ));
+        }
+        self.current_epoch = epoch;
+        Ok(())
+    }
+
+    pub fn advance_epoch(&mut self, delta: u64) -> ApexResult<u64> {
+        self.current_epoch = self
+            .current_epoch
+            .checked_add(delta)
+            .ok_or(ApexError::EpochOverflow)?;
+        Ok(self.current_epoch)
+    }
+
+    pub fn journal(&self) -> &[JournalEntry] {
+        &self.journal
+    }
+
+    pub fn account_count(&self) -> usize {
+        self.accounts.len()
+    }
+
+    pub fn intent_count(&self) -> usize {
+        self.intents.len()
     }
 
     pub fn register_account(&mut self, identity: PublicIdentity) -> ApexResult<()> {
@@ -96,6 +132,7 @@ impl ApexLedger {
             &(
                 self.network_id,
                 self.asset,
+                self.current_epoch,
                 &self.accounts,
                 &self.intents,
                 &self.seen_transactions,
@@ -134,6 +171,20 @@ impl ApexLedger {
                 expected: self.asset,
                 received: terms.asset,
             });
+        }
+
+        if terms.policy.valid_after_epoch > terms.policy.expires_at_epoch {
+            return Err(ApexError::Policy(
+                "invalid intent validity window".to_owned(),
+            ));
+        }
+
+        if self.current_epoch < terms.policy.valid_after_epoch
+            || self.current_epoch > terms.policy.expires_at_epoch
+        {
+            return Err(ApexError::Policy(
+                "intent is outside its validity window".to_owned(),
+            ));
         }
 
         if self.intents.contains_key(&terms.intent_id) {

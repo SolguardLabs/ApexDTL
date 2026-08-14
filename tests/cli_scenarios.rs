@@ -5,19 +5,32 @@ fn scenario(name: &str) -> Value {
     let output = Command::new(env!("CARGO_BIN_EXE_apex_dtl"))
         .arg(name)
         .output()
-        .expect("el escenario debe ejecutarse");
+        .expect("scenario must execute");
 
     assert!(
         output.status.success(),
-        "el escenario {name} fallo: {}",
+        "scenario {name} failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
-    serde_json::from_slice(&output.stdout).expect("el escenario debe emitir json")
+    serde_json::from_slice(&output.stdout).expect("scenario must emit json")
+}
+
+fn command(name: &str) -> Value {
+    let output = Command::new(env!("CARGO_BIN_EXE_apex_dtl"))
+        .arg(name)
+        .output()
+        .expect("command must execute");
+    assert!(
+        output.status.success(),
+        "command {name} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("command must emit json")
 }
 
 fn assert_hex32(value: &Value) {
-    let text = value.as_str().expect("el valor debe ser texto");
+    let text = value.as_str().expect("value must be text");
     assert_eq!(text.len(), 64);
     assert!(text.chars().all(|ch| ch.is_ascii_hexdigit()));
 }
@@ -32,7 +45,7 @@ fn assert_common(payload: &Value, name: &str) {
 }
 
 #[test]
-fn escenario_directo_liquida_saldos_esperados() {
+fn direct_scenario_settles_expected_balances() {
     let payload = scenario("direct");
     assert_common(&payload, "direct");
     assert_hex32(&payload["intent_id"]);
@@ -47,7 +60,7 @@ fn escenario_directo_liquida_saldos_esperados() {
 }
 
 #[test]
-fn escenario_enrutado_aplica_saldos_de_ruta() {
+fn routed_scenario_applies_route_balances() {
     let payload = scenario("routed");
     assert_common(&payload, "routed");
     assert_hex32(&payload["intent_id"]);
@@ -60,7 +73,7 @@ fn escenario_enrutado_aplica_saldos_de_ruta() {
 }
 
 #[test]
-fn escenario_batch_acumula_liquidaciones() {
+fn batch_scenario_accumulates_settlements() {
     let payload = scenario("batch");
     assert_common(&payload, "batch");
     assert_hex32(&payload["intent_id"]);
@@ -73,7 +86,7 @@ fn escenario_batch_acumula_liquidaciones() {
 }
 
 #[test]
-fn escenario_snapshot_conserva_estado_inicial() {
+fn snapshot_scenario_preserves_initial_state() {
     let payload = scenario("snapshot");
     assert_common(&payload, "snapshot");
     assert!(payload["intent_id"].is_null());
@@ -88,7 +101,7 @@ fn escenario_snapshot_conserva_estado_inicial() {
 }
 
 #[test]
-fn digests_son_deterministas_y_distintos() {
+fn digests_are_deterministic_and_distinct() {
     let first = scenario("routed");
     let second = scenario("routed");
     let direct = scenario("direct");
@@ -97,4 +110,21 @@ fn digests_son_deterministas_y_distintos() {
     assert_eq!(first["state_digest"], second["state_digest"]);
     assert_ne!(first["state_digest"], direct["state_digest"]);
     assert_ne!(first["state_digest"], batch["state_digest"]);
+}
+
+#[test]
+fn structured_commands_expose_quote_checkpoint_and_version() {
+    let quote = command("quote");
+    assert_eq!(quote["scenario"], "quote");
+    assert_eq!(quote["version"], "1.0.0");
+    assert_eq!(quote["quote"]["effective_fee_bps"], 86);
+
+    let checkpoint = command("checkpoint");
+    assert_eq!(checkpoint["scenario"], "checkpoint");
+    assert_eq!(checkpoint["checkpoint"]["sequence"], 1);
+    assert_hex32(&checkpoint["checkpoint"]["checkpoint_digest"]);
+
+    let version = command("version");
+    assert_eq!(version["protocol"], "ApexDTL");
+    assert_eq!(version["version"], "1.0.0");
 }

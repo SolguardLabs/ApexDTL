@@ -3,13 +3,13 @@ import test from "node:test";
 
 import { scenario } from "../helpers/scenario_helpers.js";
 
-test("el mismo escenario produce digest estable", () => {
+test("the same scenario produces a stable digest", () => {
     const first = scenario("routed");
     const second = scenario("routed");
     assert.equal(first.state_digest, second.state_digest);
 });
 
-test("escenarios con flujos distintos producen digests distintos", () => {
+test("different flows produce distinct digests", () => {
     const direct = scenario("direct");
     const routed = scenario("routed");
     const batch = scenario("batch");
@@ -19,7 +19,7 @@ test("escenarios con flujos distintos producen digests distintos", () => {
     assert.notEqual(direct.state_digest, batch.state_digest);
 });
 
-test("los ids de apertura y liquidacion no colisionan", () => {
+test("open and settlement ids do not collide", () => {
     for (const name of ["direct", "routed", "batch"]) {
         const payload = scenario(name);
         assert.notEqual(payload.open_tx, payload.settlement_tx);

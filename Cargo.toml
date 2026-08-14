@@ -1,9 +1,12 @@
 [package]
 name = "apex_dtl"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.96"
 publish = false
+description = "Deterministic intent and settlement engine for digital corridors"
+license = "MIT"
+repository = "https://github.com/SolguardLabs/ApexDTL"
 
 [dependencies]
 blake3 = "1.8.5"
