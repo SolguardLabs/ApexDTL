@@ -1,5 +1,3 @@
-![ApexDTL](./assets/banner.png)
-
 # ApexDTL
 
 [![CI](https://github.com/SolguardLabs/ApexDTL/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SolguardLabs/ApexDTL/actions/workflows/ci.yml)
@@ -7,6 +5,8 @@
 [![Rust](https://img.shields.io/badge/Rust-1.96%2B-000000?logo=rust)](https://www.rust-lang.org/)
 [![Release](https://img.shields.io/github/v/release/SolguardLabs/ApexDTL?display_name=tag)](https://github.com/SolguardLabs/ApexDTL/releases)
 [![License](https://img.shields.io/badge/licencia-MIT-E9DDC7)](./LICENSE)
+
+![ApexDTL](./assets/banner.png)
 
 ApexDTL es un motor determinista de intents para coordinar pagos entre redes,
 corredores de liquidez y operadores de ejecución. Su núcleo en Rust autentica
